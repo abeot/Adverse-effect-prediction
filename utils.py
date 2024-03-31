@@ -8,7 +8,7 @@ from sklearn.preprocessing import StandardScaler
 import warnings
 def warn(*args, **kwargs): pass
 warnings.warn = warn
-from sklearn.metrics import f1_score, accuracy_score, average_precision_score
+from sklearn.metrics import f1_score, accuracy_score, average_precision_score, cohen_kappa_score
 from sklearn.metrics import confusion_matrix, roc_auc_score
 import math
 import sklearn.metrics as metrics
@@ -274,6 +274,8 @@ def evaluate(y_real, y_hat, y_prob): # for classification
     except: AP = np.nan
     try: AUC = roc_auc_score(y_real, proba)
     except: AUC = np.nan
+    try: cohen = cohen_kappa_score(y_real, proba)
+    except: cohen = np.nan
     # print(f'Accuracy, w_acc,   prec, recall/SE,   SP,   ',
     #       f'F1,     AUC,     MCC,     AP')
     print(f'  Acc,  w_acc,   prec,  recall,   SP,   ',
@@ -290,7 +292,8 @@ def evaluate(y_real, y_hat, y_prob): # for classification
         "TP": TP,
         "TN": TN,
         "FP": FP,
-        "FN": FN
+        "FN": FN,
+        "cohen": cohen
     }
     return results_dict
 
