@@ -13,7 +13,6 @@ from sklearn.metrics import confusion_matrix, roc_auc_score
 import math
 import sklearn.metrics as metrics
 import numpy as np
-from tdc import Evaluator
 from mycolorpy import colorlist as mcp
 from rdkit import DataStructs
 from rdkit.Chem import MACCSkeys
@@ -83,6 +82,77 @@ def plot_tanimoto(df, title=None, savepath=None):
         maccs = MACCSkeys.GenMACCSKeys(mol)
         maccs_list.append(maccs)
     plot_tanimoto_2(maccs_list, title=title, savepath=savepath)
+
+def plot_dim_reduced(mol_info, label, task_type, dim_reduct='PCA', title=None):
+    """
+    param mol_info: could be MACCS Fingerprint
+    param label: label of data
+    param task_type: [True, False], True:regression; False: classification
+    param dim_reduct : ['PCA', 't-SNE']
+    param title: None or string, the name of the plot
+    Return figure.png saved at dim_reduct/title.png
+    """
+    features, labels = mol_info.copy(), label.copy()
+    n_components = 2
+    if dim_reduct == 'PCA':
+        pca = PCA(n_components=n_components)
+        pca.fit(features)
+        features = StandardScaler().fit_transform(features)
+        features = pd.DataFrame(data = pca.transform(features))
+        ax_label = 'principle component'
+    elif dim_reduct=='t-SNE':
+        features = TSNE(n_components=n_components).fit_transform(features)
+        features = MinMaxScaler().fit_transform(features)
+        features = pd.DataFrame(np.transpose((features[:,0],features[:,1])))
+        ax_label = 't-SNE'
+    else: print("""Error! dim_reduct should be 'PCA' or 't-SNE'"""); return
+
+    columns = [f'{ax_label} {i+1}' for i in range(n_components)]
+    # features = pd.DataFrame(data = pca.transform(features), columns=columns)
+    features.columns = columns
+    features['label'] = labels
+
+    sns.set_theme(style="whitegrid")
+    # f, ax = plt.subplots(figsize=(6, 6))
+    f, ax = plt.subplots()
+    custom_palette = sns.color_palette('husl', n_colors=6)
+    param_dict = {'x': columns[0],
+                'y': columns[1],
+                'hue':'label',
+                'palette': custom_palette,
+                'data': features,
+                's': 10,
+                'ax':ax}
+
+    # sns.despine(f, left=True, bottom=False)
+    sns.scatterplot(**param_dict)
+
+    if task_type == True: # regression task, color bar for labels
+        norm = plt.Normalize(labels.min(), labels.max())
+        scalarmap = plt.cm.ScalarMappable(cmap=param_dict['palette'], norm=norm)
+        scalarmap.set_array([])
+        ax.figure.colorbar(scalarmap)
+        ax.get_legend().remove()
+    else: sns.move_legend(ax, 'upper right') # for classification, label box
+
+    ax = plt.gca()
+    # Set the border or outline color and width
+    border_color = 'black'
+    border_width = 0.6  # Adjust this as needed
+
+    # Add a rectangular border around the plot
+    for i in ['top', 'right', 'bottom', 'left']: ax.spines[i].set_visible(True)
+
+    for spine in ax.spines.values():
+        spine.set_linewidth(border_width); spine.set_color(border_color)
+    # move the legend if has that:
+
+    if title == None: title = f'{dim_reduct}_demo'
+    plt.title(title); make_path(dim_reduct, False)
+    plt.savefig(f'{dim_reduct}/{title}.png', format='png', transparent=True)
+    print(f'figure saved at {dim_reduct}/{title}.png')
+    # plt.show(); plt.close()
+
 
 def get_morgan(df):
     smiles = df['SMILES']
