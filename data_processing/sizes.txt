@@ -1,8 +1,0 @@
-normal_tissue.tsv: has 1,197,500 rows
-- 15303 distinct genes
-
-proteinatlas.tsv: has 20,162 rows
-- One row for each gene
-
-uniprot: 20,423 rows
-- One row for each gene entry (by ID of course)
