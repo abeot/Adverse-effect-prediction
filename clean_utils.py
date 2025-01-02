@@ -22,7 +22,6 @@ def filter_ae(ae: str) -> pd.DataFrame:
     df[ae] = df[ae].replace(np.nan, 0)
     return df
     
-
 def normalize(df, ae: str) -> pd.DataFrame:
     # Normalizes the dataframe which has target as ae
     for col in df.columns:
