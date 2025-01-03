@@ -23,12 +23,19 @@ Description: collect data into one file for model training
 
 import pandas as pd
 import json
-from tdc.multi_pred import DTI 
+from tdc.multi_pred import DTI
+from tqdm import tqdm
+
+from conplex_dti.model.architectures import SimpleCoembeddingNoSigmoid
+from conplex_dti.featurizer.protein import ProtBertFeaturizer
+from conplex_dti.featurizer.molecule import MorganFeaturizer
+import torch
+from torch.utils.data import DataLoader
+import numpy as np
 
 reaction_df = pd.read_table('drug_reaction_freq.tsv')
 reaction_df = reaction_df[['drug', 'diarrhoea', 'headache', 
                            'nausea', 'vomiting', 'dizziness']]
-
 
 start_col = reaction_df.columns.get_loc('diarrhoea')
 end_col = reaction_df.columns.get_loc('dizziness')
@@ -50,7 +57,6 @@ print(cids)
 
 # ## Get the protein info
 # ### Get tissue expression level
-
 with open("prot_cell_levels.json") as f:
     cell_level = json.load(f)
 prots = list(cell_level.keys())
@@ -69,7 +75,6 @@ uniprot_ids = set(ic_df['Target_ID'].unique())
 ic_df_subset = ic_df[ic_df['Drug_ID'].isin(cids)]
 print(f"unique drugs that also have side effect info: {len(ic_df_subset['Drug_ID'].unique())}") 
 ## This value is too small, use the full dataset from TDC
-
 
 data = DTI(name = "BindingDB_IC50")
 data.harmonize_affinities(mode = "mean")
@@ -125,19 +130,9 @@ for cid in cids:
 query_df = pd.DataFrame.from_dict(query_df)
 # query_df.to_csv('query_df.tsv', sep='\t', index=False)
 
-# %%
 # Use ConPLex to predict the other pIC50 vals
 # code reference: 
 # https://github.com/samsledje/ConPLex
-from tqdm import tqdm
-
-from conplex_dti.model.architectures import SimpleCoembeddingNoSigmoid
-from conplex_dti.featurizer.protein import ProtBertFeaturizer
-from conplex_dti.featurizer.molecule import MorganFeaturizer
-import torch
-from torch.utils.data import DataLoader
-import numpy as np
-
 device = torch.device("cpu")
 print("Loading models")
 target_featurizer = ProtBertFeaturizer(
@@ -187,8 +182,6 @@ for ind in result_df.index:
     affinity = result_df['Prediction'][ind]
     affinities[(cid, uid)] = affinity
 
-import json
-
 drug_prot_ic = {}
 with open("uid_to_prot.json") as f:
     uniprot_to_prot = json.load(f)
@@ -210,7 +203,6 @@ print(f"total distinct drugs: {len(drug_prot_ic.keys())}")
 with open("drug_prot_ic.json", "w") as f:
     json.dump(drug_prot_ic, f, indent=4)
 
-# %%
 # Export to a dataframe
 drugs = set(drug_prot_ic.keys())
 prots = set(drug_prot_ic['alfentanil'].keys())
