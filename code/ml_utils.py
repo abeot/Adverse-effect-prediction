@@ -11,7 +11,7 @@ import torch.nn.functional as F
 import pickle
 import numpy as np
 from dgllife.utils import EarlyStopping
-from code.utils import *
+from utils import *
 
 class Classifier(nn.Module):
     def __init__(self, in_dim, h_dims:list):
