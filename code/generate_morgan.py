@@ -6,6 +6,7 @@ Description: Generate csv of pairwise similarity for Morgan fingerprint
 
 from utils import plot_morgan, get_morgan, pairwise_similarity, process
 import pandas as pd
+import csv
 
 df = pd.read_csv(f'drug_ml_info_binary.csv')
 df = df[['drug', 'SMILES']]
@@ -32,8 +33,6 @@ for i in range(1, num+1):
     matrix[i].append(name_list[i-1])
     for j in range(num):
         matrix[i].append(sim_list[i-1][j])
-
-import csv
 
 with open('morgan.csv', 'w') as f:
     writer = csv.writer(f)
