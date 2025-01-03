@@ -4,13 +4,21 @@ Author: Albert Cao
 Description: Prepare drug data and combine it with protein data
 """
 
-# %% [markdown]
 # ## Process the drug SMILES info
-# We only want the drugs for which we have frequency information (refer to [this paper](https://www.nature.com/articles/s41467-020-18305-y)). CID is given, and it's easy to get SMILES from that.
-# 
+# We only want the drugs for which we have frequency information
+# (refer to [this paper](https://www.nature.com/articles/s41467-020-18305-y)). 
+# CID is given, and it's easy to get SMILES from that.
 
-# %%
 import pandas as pd
+import pubchempy as pcp
+import json
+from tqdm import tqdm
+from conplex_dti.model.architectures import SimpleCoembeddingNoSigmoid
+from conplex_dti.featurizer.protein import ProtBertFeaturizer
+from conplex_dti.featurizer.molecule import MorganFeaturizer
+import torch
+from torch.utils.data import DataLoader
+import numpy as np
 
 cid_df = pd.read_csv('drug_cid.tsv', sep='\t')
 cid_df
@@ -22,21 +30,14 @@ drugs = list(cid.keys())
 print(drugs)
 print(len(drugs))
 
-# %% [markdown]
 # ### Export drug CIDs for conversion (only first time use)
-
-# %%
 # Export the drug CIDs for conversion using this website: https://pubchem.ncbi.nlm.nih.gov/idexchange/
 # Note that the total is 759
 with open("drug_cid.txt", "w") as f:
     for drug in cid:
         f.write(str(cid[drug])+"\n")
-
-# %% [markdown]
-# ### Get drug SMILES dictionary
-
-# %%
-import pubchempy as pcp
+        
+# Get drug SMILES dictionary
 
 drug_smiles = dict()
 cid_smiles = dict()
@@ -56,11 +57,8 @@ for drug in drugs:
 print(len(drug_smiles))
 print(type(drug_smiles))
 
-# %% [markdown]
-# ## Get the protein info (IC50s)
 
-# %%
-import json
+# Get the protein info (IC50s)
 
 f = open("hpa_gene_seqs.json")
 prot_seqs: dict = json.load(f)
@@ -68,13 +66,7 @@ f.close()
 prots = list(prot_seqs.keys())
 print(len(prots))
 
-# %% [markdown]
-# ### Create the pairs for the prediction file
-
-# %%
-import pandas as pd
-from tqdm import tqdm
-
+# Create the pairs for the prediction file
 def create_query_df(drugs: list, prots: list, smiles: dict, seq: dict):
     druglist = list()
     protlist = list()
@@ -104,22 +96,12 @@ def to_tsv_tqdm(df: pd.DataFrame, filename: str):
 
 
 query_df = create_query_df(drugs, prots, drug_smiles, prot_seqs)
-query_df 
-# to_tsv_tqdm(query_df, 'query_df.tsv')
 
-# %% [markdown]
-# ### Use ConPLex to get IC50 values
 
-# %%
+# Use ConPLex to get IC50 values
+
 # This code block uses ConPlex to predict binding affinity values
 # code reference: https://github.com/samsledje/ConPLex
-from conplex_dti.model.architectures import SimpleCoembeddingNoSigmoid
-from conplex_dti.featurizer.protein import ProtBertFeaturizer
-from conplex_dti.featurizer.molecule import MorganFeaturizer
-import torch
-from torch.utils.data import DataLoader
-import numpy as np
-
 device = torch.device("cpu")
 print("Loading models")
 target_featurizer = ProtBertFeaturizer(
@@ -162,13 +144,8 @@ result_df["Prediction"] = preds
 print(f"Printing ConPLex results to drug_prot_ic50_v2.tsv")
 result_df.to_csv('drug_prot_ic50_v2.tsv', sep="\t", index=False, header=False)
 
-# %% [markdown]
-# ## Get the frequency info and tissue expression levels
 
-# %%
-import pandas as pd 
-from tqdm import tqdm
-
+# Get the frequency info and tissue expression levels
 freq_df = pd.read_csv('all_grades.tsv', sep='\t')
 reactions = freq_df['reaction'].unique().tolist()
 
@@ -185,14 +162,10 @@ for ind in tqdm(freq_df.index):
     label = freq_df['label'][ind]
     drug_reaction[drug][reaction] = int(label)
 
-import json
 
 with open("drug_reaction_freq.json", "w") as f:
     json.dump(drug_reaction, f)
 
-# %%
-import pandas as pd
-from tqdm import tqdm
 
 hpa_df = pd.read_csv('normal_tissue.tsv', sep='\t')
 tissues = hpa_df['Tissue'].unique().tolist()
@@ -226,7 +199,7 @@ import json
 with open("prot_tissue_levels.json", "w") as f:
     json.dump(prot_levels, f, indent=4)
 
-# %% [markdown]
+
 # ## Reformat the files
 # - drug_smiles - dictionary mapping drug to its smiles
 # 
@@ -236,10 +209,8 @@ with open("prot_tissue_levels.json", "w") as f:
 # 
 # - prot_levels - dictionary mapping protein and tissue to expression level (3 2 1 0 for high medium low not detected or -100 for na value)
 
-# %% [markdown]
 # ### Drug, SMILES and IC50
 
-# %%
 drug_smiles_ic50_dict = dict()
 
 drug_ic50s = dict()
@@ -267,10 +238,8 @@ with open("drug_smiles_ic50.tsv", "w") as f:
         f.write("\n")
 
 
-# %% [markdown]
 # ### Drug and reaction frequency
 
-# %%
 with open("drug_reaction_freq.tsv", "w") as f:
     f.write("drug\t")
     for reaction in reactions:
@@ -282,10 +251,8 @@ with open("drug_reaction_freq.tsv", "w") as f:
             f.write(f"{drug_reaction[drug][reaction]}\t")
         f.write("\n")
 
-# %% [markdown]
 # ### Protein and tissue expression levels
 
-# %%
 with open("prot_tissue_levels.tsv", "w") as f:
     f.write("protein\t")
     for tissue in tissues:
