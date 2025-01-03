@@ -4,7 +4,6 @@ Author: Albert Cao
 Description: collect data into one file for model training
 """
 
-# %% [markdown]
 # Tasks done (in order):
 # - Get drug reaction info (only look at top 5 reactions with most data)   
 # - Get protein cell level info   
@@ -18,23 +17,19 @@ Description: collect data into one file for model training
 # - Train the model  
 # - Make some predictions  
 
-# %% [markdown]
 # # Data collection
-
-# %% [markdown]
 # ## Get the drug info
-
-# %% [markdown]
 # ### Get our reaction data
 
-# %%
 import pandas as pd
+import json
+from tdc.multi_pred import DTI 
 
 reaction_df = pd.read_table('drug_reaction_freq.tsv')
-reaction_df = reaction_df[['drug', 'diarrhoea', 'headache', 'nausea', 'vomiting', 'dizziness']]
-reaction_df
+reaction_df = reaction_df[['drug', 'diarrhoea', 'headache', 
+                           'nausea', 'vomiting', 'dizziness']]
 
-# %%
+
 start_col = reaction_df.columns.get_loc('diarrhoea')
 end_col = reaction_df.columns.get_loc('dizziness')
 for i in range(start_col, end_col+1):
@@ -42,10 +37,8 @@ for i in range(start_col, end_col+1):
     a = list(reaction_df[col] != -100)
     print(a.count(True))
 
-# %% [markdown]
-# ### Get the Pubchem IDs (needed for IC50)
 
-# %%
+# ### Get the Pubchem IDs (needed for IC50)
 cid_df = pd.read_table('drug_cid.tsv')
 drug_to_cid = dict()
 for ind in cid_df.index:
@@ -54,24 +47,16 @@ print(len(drug_to_cid.keys()))
 cids = set(drug_to_cid.values())
 print(cids)
 
-# %% [markdown]
+
 # ## Get the protein info
-
-# %% [markdown]
 # ### Get tissue expression level
-
-# %%
-import json
 
 with open("prot_cell_levels.json") as f:
     cell_level = json.load(f)
 prots = list(cell_level.keys())
 print(len(prots))
 
-# %% [markdown]
 # ### Get the IC50 values
-
-# %%
 ic_df1 = pd.read_csv('train_val.csv')
 ic_df2 = pd.read_csv('test.csv')
 ic_df = pd.concat([ic_df1, ic_df2], ignore_index=True)
@@ -82,11 +67,9 @@ print(f"unique drugs (in Pubchem ID): {len(ic_df['Drug_ID'].unique())}")
 uniprot_ids = set(ic_df['Target_ID'].unique())
 
 ic_df_subset = ic_df[ic_df['Drug_ID'].isin(cids)]
-print(f"unique drugs that also have side effect info: {len(ic_df_subset['Drug_ID'].unique())}") ## This value is too small, use the full dataset from TDC
-ic_df_subset
+print(f"unique drugs that also have side effect info: {len(ic_df_subset['Drug_ID'].unique())}") 
+## This value is too small, use the full dataset from TDC
 
-# %%
-from tdc.multi_pred import DTI 
 
 data = DTI(name = "BindingDB_IC50")
 data.harmonize_affinities(mode = "mean")
@@ -97,9 +80,7 @@ full_df = full_df[full_df['Drug_ID'].isin(cids)]
 full_df = full_df[full_df['Target_ID'].isin(uniprot_ids)]
 full_df = full_df.drop(columns=['Target'])
 print(f"unique drugs that also have side effect data: {len(full_df['Drug_ID'].unique())}") # Value is also quite low
-full_df
 
-# %%
 affinities = dict()
 
 known_dti_pairs = set()
@@ -110,10 +91,7 @@ for ind in full_df.index:
     affinity = full_df['Y'][ind]
     affinities[(drug_cid, prot_uid)] = affinity
 
-# %% [markdown]
 # ### Using ConPLex to predict IC50 values
-
-# %%
 # create query df (this doesn't need to run after the first time)
 cid_to_smiles = {}
 with open("cid_smiles_final.txt") as f:
@@ -198,14 +176,10 @@ preds = np.concatenate(preds)
 
 result_df = pd.DataFrame(query_df[["moleculeID", "proteinID"]])
 result_df["Prediction"] = preds
-
-# %%
 result_df.to_csv('query_df_results.tsv', index=False)
 
-# %% [markdown]
-# ### Read IC50 values
 
-# %%
+# ### Read IC50 values
 result_df = pd.read_csv('query_df_results.csv')
 for ind in result_df.index:
     cid = result_df['moleculeID'][ind]
@@ -213,7 +187,6 @@ for ind in result_df.index:
     affinity = result_df['Prediction'][ind]
     affinities[(cid, uid)] = affinity
 
-# %%
 import json
 
 drug_prot_ic = {}
@@ -247,10 +220,7 @@ for prot in prots:
     drug_ic_df[prot] = drug_ic_df['drug'].apply(lambda x : drug_prot_ic[x][prot])
 drug_ic_df.to_csv('drug_smiles_ic50.csv', index=False)
 
-# %% [markdown]
 # # Data cleaning
-
-# %% [markdown]
 # Dataframes that are the inputs:
 # - reaction_df
 # - drug_ic_df
@@ -261,10 +231,7 @@ drug_ic_df.to_csv('drug_smiles_ic50.csv', index=False)
 # - drug_prot_ic
 # - prots
 
-# %% [markdown]
 # ## Get cell 'strength' and prepare data for ML
-
-# %%
 from tqdm import tqdm
 
 cells = set(cell_level['PLCL2'].keys())
@@ -307,10 +274,6 @@ for ind in tqdm(drug_ic_df.index, total=drug_ic_df.shape[0], desc='Calculate cel
                     total += ans
         drug_strength[cell].append(total)
 drug_strength = pd.DataFrame.from_dict(drug_strength) 
-drug_strength
-
-
-# %%
 full_df = drug_strength.merge(reaction_df)
 full_df.to_csv('drug_ml_info.csv', index=False)
 
