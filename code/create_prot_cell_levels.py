@@ -7,6 +7,7 @@ Description: Create cleaned data for protein expression levels in cells
 # File to do stuff for proteins
 import pandas as pd
 import json
+from tqdm import tqdm
 
 # Get prot cell levels
 df = pd.read_table('normal_tissue.tsv')
@@ -30,7 +31,6 @@ cells = correct_cells
 print(f"Number of unique tissue cell types: {len(cells)}")
 
 # Export the data
-from tqdm import tqdm
 
 prot_levels = {}
 for prot in prots:
