@@ -5,6 +5,7 @@ Description: Read protein data and find gene sequences
 """
 
 import pandas as pd
+import json
 
 prot_levels = pd.read_csv('normal_tissue.tsv', sep='\t')
 hpa = pd.read_csv('proteinatlas.tsv', sep='\t')
@@ -48,5 +49,4 @@ for gene in genes:
     except:
         print(f"Could not find Uniprot ID of gene {gene}")
 
-import json
 json.dump(hpa_map, open("hpa_gene_seqs.json", "w"), indent=4)
