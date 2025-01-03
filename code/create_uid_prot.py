@@ -5,6 +5,7 @@ Description: Create dictionaries to map proteins from different datasets
 """
 
 import pandas as pd
+import json
 
 hpa = pd.read_csv('proteinatlas.tsv', sep='\t')
 uniprot = pd.read_csv('uniprotkb_reviewed_true_AND_model_organ_2023_08_23.tsv', sep='\t')
@@ -35,8 +36,6 @@ for ind in hpa.index:
         except KeyError:
             print(f"Could not find {uid}")
             map[gene] = ""
-
-import json
 
 json.dump(map, open("gene_to_prot.json", "w"), indent=4)
 with open("uid_to_prot.json", "w") as f:
