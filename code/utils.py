@@ -54,11 +54,6 @@ def pairwise_similarity(fp_list):
     for i in range(num): assert similarities[i, i] == 1
     return similarities
 
-def make_path(path_name, verbose=True):
-    import os
-    if os.path.exists(path_name):
-        if verbose: print('path:', path_name, 'already exists')
-    else: os.makedirs(path_name); print('path:', path_name, 'is created')
 
 def plot_tanimoto_2(feature_list: list, title=None, savepath=None):
     similarities = pairwise_similarity(feature_list)
