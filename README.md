@@ -13,8 +13,10 @@ The original data comes from the files `all_grades.tsv`, `drug_cid.tsv`, `normal
 datasets were acquired from various sources referenced in the paper.
 
 
-<details><summary><b>Citation</b></summary>
 
+
+
+### Citation 
 If you use this code or the models in your research, please cite the following paper:
 
 ```bibtex
