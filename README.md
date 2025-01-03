@@ -2,6 +2,9 @@
 
 This is the source code for [Machine Learning Prediction of On/Off Target-driven Clinical Adverse Events](https://doi.org/10.1007/s11095-024-03742-x).
 
+![Alt Text](overview.png)
+
+
 The code for the final model we used for predictions is contained in `AE_train_1.py` in the `code` folder.
 A.C. and Y.Z. worked together on `AE_train_1.py`, `utils.py`, and `ml_utils.py`. 
 
