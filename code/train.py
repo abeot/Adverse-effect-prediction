@@ -273,7 +273,7 @@ def batch_train(ae_name, model_file, k_folds,
                     torch.save(model.state_dict(), file_new_path)
                     import os
                     file_path = f'{ae_name}_cohen_{best_cohen}.pt'
-                    if os.path. exists(file_old_path):
+                    if os.path.exists(file_old_path):
                         os.remove(file_old_path)
                         print(f"The file {file_old_path} has been deleted.")
                     best_cohen = cohen_here
