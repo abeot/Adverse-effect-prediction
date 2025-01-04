@@ -3,6 +3,19 @@ Last edited: 06-30-24
 Author: Albert Cao, Yingzi Bu
 Description: Code for generating final models and evaluating performance
 """
+import pandas as pd
+from utils import *
+
+import torch.nn as nn
+import torch
+from torch.utils.data import DataLoader, Dataset
+import torch.nn.functional as F
+import numpy as np
+from dgllife.utils import EarlyStopping
+import torch.optim as optim
+from sklearn.model_selection import KFold
+import pickle
+
 
 ## CONSTANTS
 lr = 1e-5 # learning rate, try 1e-5
@@ -15,8 +28,6 @@ in_dim = 215
 # best_cohen = 0.19
 k_folds = 5
 
-# model_path = f'test_{ae_name}.pt'
-
 patience = 15
 verbose_freq = 100 # print out results every 10 epochs
 batch_size = 64
@@ -27,15 +38,7 @@ best_cohen_dict  = {
     'nausea': 0.2935,
     'vomiting': 0.27
 }
-# params = {'batch_size':batch_size, 'shuffle':False,
-            #   'drop_last':False, 'num_workers': 0}
 
-# %% [markdown]
-# ## Code
-
-# %%
-import pandas as pd
-from code.utils import *
 
 def normalize(df):
     result = df.copy()
@@ -48,33 +51,6 @@ def normalize(df):
             print(f'cannot normalize {feature_name}')
     return result
 
-### HANDEL MISSING DATA AS LABEL 0, EXISTING DATA AS LABEL !
-
-# import pandas as pd
-# import numpy as np
-
-# data = pd.read_csv('/content/drive/MyDrive/Adverse-effect-prediction-main/drug_ml_info_binary_1.csv')
-# aes  = [
-#     'diarrhoea',
-#     'dizziness',
-#     'headache',
-#     'nausea',
-#     'vomiting'
-# ]
-
-# for j in range(len(aes)):
-#     label_list = data[aes[j]].tolist()
-#     temp_list = []
-
-#     for i in label_list:
-#         if np.isnan(i):
-#             temp_list.append(0)
-#         else: temp_list.append(1)
-
-#     new_data = data.iloc[:,:-5].copy()
-#     new_data = normalize(new_data)
-#     new_data[aes[j]] = pd.DataFrame(temp_list)
-#     new_data.to_csv(f"{aes[j]}_new.csv", index=False)
 
 def get_data(ae_name, negative_sampling=None):
     # df = pd.read_csv(f'data_normalized_{ae_name}.csv')
@@ -102,15 +78,6 @@ def get_data(ae_name, negative_sampling=None):
         print('After adding negative samples', counts)
     return df, train_df, test_df
 
-
-
-# %%
-import torch.nn as nn
-import torch
-from torch.utils.data import DataLoader, Dataset
-import torch.nn.functional as F
-import pickle
-import numpy as np
 
 class Classifier(nn.Module):
     def __init__(self, in_dim, h_dims:list):
@@ -236,10 +203,6 @@ def eval(model, loader, path=None, ae_name="", device='cpu'):
     return performance, probs, label
 
 
-from dgllife.utils import EarlyStopping
-
-
-
 def train(model, data_loader, val_loader, test_loader=None, weight_loss=None,
           ver_freq=verbose_freq, optimizer=None, ae_name="", device='cuda', model_path=None):
     train_dict = {}
@@ -286,15 +249,6 @@ def train(model, data_loader, val_loader, test_loader=None, weight_loss=None,
         performance, _, _ = eval(model, test_loader, model_path,
                                  device=device, ae_name=ae_name)
         return performance
-
-# %%
-import torch.optim as optim
-from dgllife.utils import EarlyStopping
-from sklearn.model_selection import KFold
-import pickle
-# hidden dims of neural network are changeable,
-# as long as its all integers
-# h_dims = [400*2, 256*2, 128*2, 128, 64]
 
 def get_max(d:dict):
     max_key = next(iter(d))
@@ -411,36 +365,22 @@ def batch_train(ae_name, model_file, k_folds,
 
     # clean_files()
     return result_dict
-# results_df.to_csv(f"{ae_name}_results.csv", index=False)
 
-# %% [markdown]
-# ## Experiment (Do not run, cost several days)
 
-# %%
-# h_dims = [1600, 1028, 512, 216, 128]
-# model_file = 'best_models_3'
-# import pickle
-# # model_file = 'best_models_1'
-# with open(f'{model_file}/h_dims.pkl', 'wb') as f: pickle.dump(h_dims, f)
-# with open(f'{model_file}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-# h_dims
-
-clean_files()
-
-# %%
-h_dims = [800, 512, 216, 128, 64]
-model_file = 'new_models'
-import pickle
+# h_dims = [800, 512, 216, 128, 64]
+model_file = 'best_models'
 # model_file = 'best_models_1'
-with open(f'{model_file}/h_dims.pkl', 'wb') as f: pickle.dump(h_dims, f)
+# with open(f'{model_file}/h_dims.pkl', 'wb') as f: pickle.dump(h_dims, f)
 with open(f'{model_file}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-h_dims
+    
+aes = [
+    'diarrhoea',
+    'dizziness',
+    'headache',
+    'nausea',
+    'vomiting'
+]
 
-
-# %%
-aes[-2:]
-
-# %%
 best_cohen_dict  = {
     'diarrhoea': 0.,
     'dizziness': 0.,
@@ -461,15 +401,7 @@ for model_file in ['new_models']:
                                 min_weight=0.5, max_weight=4, weight_interval=0.5,
                                 negative_sampling=ns, best_cohen=best_cohen,
                                 batch_size=batch_size)
-#                     if result_dict != None:
-#                         break
-#                 break
-#             break
-#         break
-#     break
-# result_dict
 
-# %%
 model_file = 'best_models_2'
 
 # h_dims = [400, 256, 128, 64]
@@ -495,7 +427,6 @@ for i in tqdm(range(9,1,-1), desc=f'current'):
                             weight_interval=0.2,
                             negative_sampling=0.1*i, best_cohen=0.2)
 
-# %%
 for i in range(1,10):
     # max_weight = min(int(10/i) + 3, 9)
     # min_weight = max(min(max(int(10/i) - 3, 1), max_weight-4), 0.2)
@@ -508,159 +439,49 @@ for i in range(1,10):
                             weight_interval=0.2,
                             negative_sampling=0.1*i, best_cohen=0.00001)
 
-# %%
-# for i in range(1,10):
-#     max_weight = min(int(10/i) + 3, 9)
-#     min_weight = max(min(max(int(10/i) - 3, 1), max_weight-4), 0.2)
-#     print('min max:', min_weight, max_weight)
 
-# %% [markdown]
-# # Results
-# 
-# Parameter tested:
-# 
-# * h_dims:  
-#   
-# ```
-#   [1000, 512, 256, 128] - folder 'best_models'
-# 
-#   [400, 256, 128, 64].  - folder 'best_models_1'
-# 
-#   [200, 128, 64, 32]    - folder 'best_models_2'
-# ```
-# 
-# * negative sampling 0.1 - 1, increment = 0. 1
-# 
-# * loss_weight, 1-9, increment = 0.2
-# 
-# ---> further possible solution
-# 
-# * k_folds, 2-10, increment = 1
+### Evaluation 
 
-# %%
-clean_files()
-
-# %% [markdown]
-# ## Results frequent AEs vs infrequent AEs
-
-# %%
-# ae_name = 'diarrhoea'
-# acc	   precision	recall	     F1	       TP	    TN	FP	FN	 cohen
-# 0.929577	0.927536	1.000000	0.962406	64.0	2.0	5.0	0.0	0.418985
-
-# %%
-model_folder = 'new_models'
-ae_name = 'headache'
-
-_, _, test_df = get_data(ae_name)
-batch_size = 64
-params = {'batch_size':batch_size, 'shuffle':False,
-              'drop_last':False, 'num_workers': 0}
-
-test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
-
-
+# model_folder = 'best_models'
+# ae_name = 'dizziness'
+# _, _, test_df = get_data(ae_name)
+# test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
 # with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-# print(h_dims)
+# model = Classifier(in_dim, h_dims)
+# if torch.cuda.is_available(): model = model.cuda()
+# model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models/dizziness_cohen_0.3109869646182495.pt'
+# _ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
 
 
-model = Classifier(in_dim, h_dims)
-if torch.cuda.is_available(): model = model.cuda()
-model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/new_models/headache_cohen_0.05673758865248235.pt'
+# model_folder = 'best_models'
+# ae_name = 'headache'
+# _, _, test_df = get_data(ae_name)
+# test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
+# with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
+# model = Classifier(in_dim, h_dims)
+# if torch.cuda.is_available(): model = model.cuda()
+# model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models/headache_cohen_0.4108761329305136.pt'
+# _ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
 
 
-# def eval(model, loader, path=None, device='cpu'):
-#     if path != None: load_model(model, path)
-#     performance, probs, label = train_epoch(model, loader, device=device)
-#     return performance, probs, label
+# model_folder = 'best_models'
+# ae_name = 'nausea'
+# _, _, test_df = get_data(ae_name)
+# test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
+# with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
+# model = Classifier(in_dim, h_dims)
+# if torch.cuda.is_available(): model = model.cuda()
+# model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models/nausea_cohen_0.4134078212290503.pt'
+# _ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
 
-_ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
 
-# %%
-model_folder = 'best_models'
-ae_name = 'dizziness'
+# model_folder = 'best_models'
+# ae_name = 'vomiting'
+# _, _, test_df = get_data(ae_name)
+# test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
+# with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
+# model = Classifier(in_dim, h_dims)
+# if torch.cuda.is_available(): model = model.cuda()
+# model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models/vomiting_cohen_0.29735234215885953.pt'
+# _ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
 
-_, _, test_df = get_data(ae_name)
-test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
-with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-
-model = Classifier(in_dim, h_dims)
-if torch.cuda.is_available(): model = model.cuda()
-model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models/dizziness_cohen_0.3109869646182495.pt'
-
-# def eval(model, loader, path=None, device='cpu'):
-#     if path != None: load_model(model, path)
-#     performance, probs, label = train_epoch(model, loader, device=device)
-#     return performance, probs, label
-
-_ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
-
-# %%
-model_folder = 'best_models'
-ae_name = 'headache'
-
-_, _, test_df = get_data(ae_name)
-test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
-with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-
-model = Classifier(in_dim, h_dims)
-if torch.cuda.is_available(): model = model.cuda()
-model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models/headache_cohen_0.4108761329305136.pt'
-
-# def eval(model, loader, path=None, device='cpu'):
-#     if path != None: load_model(model, path)
-#     performance, probs, label = train_epoch(model, loader, device=device)
-#     return performance, probs, label
-
-_ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
-
-# %%
-model_folder = 'best_models'
-ae_name = 'nausea'
-
-_, _, test_df = get_data(ae_name)
-test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
-with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-
-model = Classifier(in_dim, h_dims)
-if torch.cuda.is_available(): model = model.cuda()
-model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models/nausea_cohen_0.4134078212290503.pt'
-
-# def eval(model, loader, path=None, device='cpu'):
-#     if path != None: load_model(model, path)
-#     performance, probs, label = train_epoch(model, loader, device=device)
-#     return performance, probs, label
-
-_ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
-
-# %%
-model_folder = 'best_models'
-ae_name = 'vomiting'
-
-_, _, test_df = get_data(ae_name)
-test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
-with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-
-model = Classifier(in_dim, h_dims)
-if torch.cuda.is_available(): model = model.cuda()
-model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models/vomiting_cohen_0.29735234215885953.pt'
-# def eval(model, loader, path=None, device='cpu'):
-#     if path != None: load_model(model, path)
-#     performance, probs, label = train_epoch(model, loader, device=device)
-#     return performance, probs, label
-
-_ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
-
-# %%
-model_folder = 'best_models_3'
-ae_name = 'vomiting'
-
-_, _, test_df = get_data(ae_name)
-test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
-with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-
-model = Classifier(in_dim, h_dims)
-if torch.cuda.is_available(): model = model.cuda()
-model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models_3/vomiting_cohen_0.29735234215885953.pt'
-
-_ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
