@@ -664,28 +664,3 @@ if torch.cuda.is_available(): model = model.cuda()
 model_path_best_cohen = '/content/drive/MyDrive/Adverse-effect-prediction-main/best_models_3/vomiting_cohen_0.29735234215885953.pt'
 
 _ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
-
-# %% [markdown]
-# ## Results for AE vs non-AE
-
-# %%
-result_dict_no_vs_AE = {'headache': '/content/drive/MyDrive/Adverse-effect-prediction-main/new_models/headache_cohen_0.05673758865248235.pt',
-                        'diarrhoea': '/content/drive/MyDrive/Adverse-effect-prediction-main/new_models/diarrhoea_cohen_0.04309696817840136.pt',
-                        'vomiting': '/content/drive/MyDrive/Adverse-effect-prediction-main/new_models/vomiting_cohen_0.0010621348911311612.pt',
-                        'dizziness': '/content/drive/MyDrive/Adverse-effect-prediction-main/new_models/dizziness_cohen_0.014693171996542853.pt'}
-
-model_folder = 'new_models'
-for ae_name, model_path_best_cohen in result_dict_no_vs_AE.items():
-    # print(i, j)
-    params = {'batch_size':batch_size, 'shuffle':False,
-              'drop_last':False, 'num_workers': 0}
-    _, _, test_df = get_data(ae_name)
-    test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
-    with open(f'{model_folder}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-
-    model = Classifier(in_dim, h_dims)
-    if torch.cuda.is_available(): model = model.cuda()
-    print('\n\n\n', ae_name)
-    _ = eval(model, test_loader, path=model_path_best_cohen, device='cuda')
-
-
