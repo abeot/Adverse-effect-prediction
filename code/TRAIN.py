@@ -88,7 +88,7 @@ def get_data(ae_name, negative_sampling=None):
         print('After adding negative samples', counts)
     return df, train_df, test_df
 
-# gpu version of function: train_epoch
+# gpu version of function: train_epoch, train
 # slight modification, different from pure cpu version in ml_utils.py
 def train_epoch(model, loader, device='cpu', epoch=None, optimizer=None,
                 MASK=-100, model_type='MLP', weight_loss=None, ver=False, ae_name=""):
@@ -158,7 +158,6 @@ def train(model, data_loader, val_loader, test_loader=None, weight_loss=None,
     # Otherwise you are using the same stopper for 5-fold validation
     stopper = EarlyStopping(mode='lower', patience=patience)
 
-
     for epoch in range(best_epoch, MAX_EPOCH):
         score, _, _ = train_epoch(model, data_loader, epoch=epoch,
                 optimizer=optimizer, weight_loss=weight_loss, device=device)
@@ -199,7 +198,6 @@ def get_max(d:dict):
         if d[key] > d[max_key]: max_key = key
     return max_key, d[max_key]
 
-
 def batch_train(ae_name, model_file, k_folds,
                 min_weight, max_weight, weight_interval,
                 negative_sampling=None, best_cohen=0.15, batch_size=64):
@@ -219,10 +217,7 @@ def batch_train(ae_name, model_file, k_folds,
               'drop_last':False, 'num_workers': 0}
     test_loader = DataLoader(tox_dataset(test_df, ae_name), **params)
 
-    # weight_losses = [0.2, 8.0, 8.0, 7.0, 6.0]
-
     result_dict = {}
-
     for idx_here in range(temp_min, temp_max):
         print('\n\n')
         weight_loss_here = idx_here * weight_interval
