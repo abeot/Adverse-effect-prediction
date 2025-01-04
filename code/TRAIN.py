@@ -25,12 +25,11 @@ MAX_EPOCH = 300
 
 # BELOW IS NOT CHANGEABLE
 in_dim = 215
-# best_cohen = 0.19
 k_folds = 5
-
 patience = 15
 verbose_freq = 100 # print out results every 10 epochs
 batch_size = 64
+
 best_cohen_dict  = {
     'diarrhoea': 0.273,
     'dizziness': 0.31,
@@ -39,6 +38,17 @@ best_cohen_dict  = {
     'vomiting': 0.27
 }
 
+# h_dims = [800, 512, 216, 128, 64]
+model_file = 'best_models'
+with open(f'{model_file}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
+    
+aes = [
+    'diarrhoea',
+    'dizziness',
+    'headache',
+    'nausea',
+    'vomiting'
+]
 
 def normalize(df):
     result = df.copy()
@@ -78,68 +88,8 @@ def get_data(ae_name, negative_sampling=None):
         print('After adding negative samples', counts)
     return df, train_df, test_df
 
-
-class Classifier(nn.Module):
-    def __init__(self, in_dim, h_dims:list):
-        super(Classifier, self).__init__()
-
-        neurons = [in_dim, *h_dims]
-        linear_layers = [nn.Linear(neurons[i-1], neurons[i]) \
-                         for i in range(1, len(neurons))]
-        self.hidden = nn.ModuleList(linear_layers)
-        # self.emb = nn.GRU(h_dims[-1], h_dims[-1])
-        self.final = nn.Linear(h_dims[-1], 1)
-        self.output = nn.Sigmoid()
-
-    def forward(self, x):
-        for layer in self.hidden:
-            x = F.relu(layer(x))
-        # x = torch.squeeze(self.output(self.final(x)))
-        x = torch.squeeze(self.output(self.final(x)))
-        return x
-
-class tox_dataset(Dataset):
-    def __init__(self, df, ae_name):
-        self.len = len(df)
-        self.df = df
-        self.ic_start_ind = df.columns.get_loc("appendix endocrine cells")
-        self.ae_start_ind = df.columns.get_loc(ae_name)
-
-    def __getitem__(self, idx):
-        """
-        OUTPUT
-        :param fp: fingerprint, should be 167 dim
-        :param ic: drug tissue concentration
-        :param ae: adverse events
-        """
-        # header = ['bit' + str(i) for i in range(167)]
-        # fp = self.df[header]
-        # fp = torch.tensor([float(b) for b in fp.iloc[idx]], dtype=torch.float32)
-        ic = self.df.iloc[:, self.ic_start_ind:self.ae_start_ind]
-        ic = torch.tensor(ic.values.astype(np.float32))[idx]
-        ae = self.df.iloc[:, self.ae_start_ind:]
-        ae = torch.tensor(ae.values.astype(np.float32))[idx]
-        # ae = onehot(5)(ae) # use onehot
-        # return fp, ic, ae.float()
-        return ic, ae.float()
-    def __len__(self): return self.len
-
-def loss_func(output, target, weight):
-
-    target = target.to(dtype=torch.float32)
-
-    output.requires_grad_(True)
-    target.requires_grad_(True)
-
-    log_output = torch.log(torch.clamp(output, min=1e-10, max=1.0 - 1e-10))
-    log_1_minus_output = torch.log(torch.clamp(1 - output,
-                                    min=1e-10, max=1.0 - 1e-10))
-
-    loss = -torch.sum(target * log_output + \
-            weight * (1 - target) * log_1_minus_output)
-
-    return loss
-
+# gpu version of function: train_epoch
+# slight modification, different from pure cpu version in ml_utils.py
 def train_epoch(model, loader, device='cpu', epoch=None, optimizer=None,
                 MASK=-100, model_type='MLP', weight_loss=None, ver=False, ae_name=""):
     if optimizer==None: # no optimizer, either valid or test
@@ -159,10 +109,8 @@ def train_epoch(model, loader, device='cpu', epoch=None, optimizer=None,
         ic, ae = ic.to(device), ae.to(device)
         mask = ae == MASK
         mask = mask.to(device)
-        # pred = model(torch.cat((fp, ic), 1))
         pred = model(ic)
-        # print('pred', pred)
-
+        
         loss = loss_func(pred, ae, weight_loss)
 
         if train_type != 'Train': # valid or test, output probs and labels
@@ -193,15 +141,10 @@ def train_epoch(model, loader, device='cpu', epoch=None, optimizer=None,
     elif train_type == 'Valid': return total_loss, y_probs, y_label
     else: return performance, y_probs, y_label
 
-def load_model(model, path, device='cpu'):
-    print('load model from path: ', path)
-    model.load_state_dict(torch.load(path, map_location=device))
-
 def eval(model, loader, path=None, ae_name="", device='cpu'):
     if path != None: load_model(model, path)
     performance, probs, label = train_epoch(model, loader, device=device, ae_name=ae_name)
     return performance, probs, label
-
 
 def train(model, data_loader, val_loader, test_loader=None, weight_loss=None,
           ver_freq=verbose_freq, optimizer=None, ae_name="", device='cuda', model_path=None):
@@ -325,10 +268,7 @@ def batch_train(ae_name, model_file, k_folds,
                 cls_results = train(model, train_loader, val_loader, test_loader,
                         weight_loss=weight_loss_here, optimizer=optimizer,
                         ae_name=ae_name, device='cuda', model_path=model_path)
-                # _, probs, label = eval(model, test_loader, model_path, device='cuda')
-                # preds = get_preds(0.5, probs)
-                # cls_results = evaluate(label, preds, probs)
-                # print('cls_results:', cls_results)
+
                 cohen_here = cls_results['cohen']
                 if cohen_here > best_cohen:
                     try: file_old_path = file_new_path
@@ -343,12 +283,9 @@ def batch_train(ae_name, model_file, k_folds,
                         print(f"The file {file_old_path} has been deleted.")
                     best_cohen = cohen_here
 
-                # [ACCURACY, weighted_accuracy, precision, SE, SP, F1, AUC, MCC, AP]
                 for key in cls_results:
                     results[key].append(cls_results[key])
 
-                # if cls_results['cohen'] == 0:
-                #     break
             for key in results:
                 results[key].append(np.mean(results[key]))
 
@@ -360,59 +297,9 @@ def batch_train(ae_name, model_file, k_folds,
         result_dict[weight_loss_here] = sum(result_list) / len(result_list)
         if result_dict[weight_loss_here] < 0: break
 
-        # argmax_cohen, max_cohen = get_max(result_dict)
-        # if len(result_dict) > argmax_cohen + 3: break
-
-    # clean_files()
     return result_dict
 
-
-# h_dims = [800, 512, 216, 128, 64]
-model_file = 'best_models'
-# model_file = 'best_models_1'
-# with open(f'{model_file}/h_dims.pkl', 'wb') as f: pickle.dump(h_dims, f)
-with open(f'{model_file}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-    
-aes = [
-    'diarrhoea',
-    'dizziness',
-    'headache',
-    'nausea',
-    'vomiting'
-]
-
-best_cohen_dict  = {
-    'diarrhoea': 0.,
-    'dizziness': 0.,
-    'headache': 0.,
-    'nausea': 0.,
-    'vomiting': 0.
-}
-
-for model_file in ['new_models']:
-    for k_folds in range(6, 7):
-        k_folds = int(k_folds)
-        for batch_size in [64]:
-            for ns in [None]:
-                for ae_name in aes[-2:]:
-                # for ae_name in ['vomiting']:
-                    best_cohen = best_cohen_dict[ae_name]
-                    result_dict = batch_train(ae_name, model_file, k_folds,
-                                min_weight=0.5, max_weight=4, weight_interval=0.5,
-                                negative_sampling=ns, best_cohen=best_cohen,
-                                batch_size=batch_size)
-
-model_file = 'best_models_2'
-
-# h_dims = [400, 256, 128, 64]
-
-# h_dims =  [200, 128, 64, 32]
-# import pickle
-# # model_file = 'best_models_1'
-# with open(f'{model_file}/h_dims.pkl', 'wb') as f: pickle.dump(h_dims, f)
-# with open(f'{model_file}/h_dims.pkl', 'rb') as f: h_dims = pickle.load(f)
-# h_dims
-
+### TRAIN 
 for i in tqdm(range(9,1,-1), desc=f'current'):
     max_weight = min(int(10/i) + 3, 9)
     min_weight = max(min(max(int(10/i) - 3, 1), max_weight-4), 0.2)
@@ -426,18 +313,6 @@ for i in tqdm(range(9,1,-1), desc=f'current'):
                             min_weight=min_weight, max_weight=max_weight,
                             weight_interval=0.2,
                             negative_sampling=0.1*i, best_cohen=0.2)
-
-for i in range(1,10):
-    # max_weight = min(int(10/i) + 3, 9)
-    # min_weight = max(min(max(int(10/i) - 3, 1), max_weight-4), 0.2)
-    max_weight = 9
-    min_weight = 1
-    print('min max:', min_weight, max_weight)
-    for ae_name in ['dizziness']:
-        result_dict = batch_train(ae_name, model_file, k_folds,
-                            min_weight=min_weight, max_weight=max_weight,
-                            weight_interval=0.2,
-                            negative_sampling=0.1*i, best_cohen=0.00001)
 
 
 ### Evaluation 
