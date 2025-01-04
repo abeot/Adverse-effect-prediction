@@ -89,7 +89,7 @@ def get_data(ae_name, negative_sampling=None):
     return df, train_df, test_df
 
 # gpu version of function: train_epoch, train
-# slight modification, different from pure cpu version in ml_utils.py
+# slight modification, different from version in ml_utils.py
 def train_epoch(model, loader, device='cpu', epoch=None, optimizer=None,
                 MASK=-100, model_type='MLP', weight_loss=None, ver=False, ae_name=""):
     if optimizer==None: # no optimizer, either valid or test
