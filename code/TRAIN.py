@@ -31,11 +31,11 @@ verbose_freq = 100 # print out results every 10 epochs
 batch_size = 64
 
 best_cohen_dict  = {
-    'diarrhoea': 0.273,
-    'dizziness': 0.31,
-    'headache': 0.3187,
-    'nausea': 0.2935,
-    'vomiting': 0.27
+    'diarrhoea': 0.2,
+    'dizziness': 0.2,
+    'headache': 0.2,
+    'nausea': 0.2,
+    'vomiting': 0.2
 }
 
 # h_dims = [800, 512, 216, 128, 64]
