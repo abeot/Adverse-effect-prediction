@@ -5,8 +5,8 @@ This is the source code for [Machine Learning Prediction of On/Off Target-driven
 ![Alt Text](figures/paper/fig_1.png)
 
 
-The code for the final model we used for predictions is contained in `TRAIN.py` in the `code` folder.
-A.C. and Y.Z. worked together on `TRAIN.py`, `utils.py`, and `ml_utils.py`. 
+The code for the final model we used for predictions is contained in `train.py` in the `code` folder.
+A.C. and Y.Z. worked together on `train.py`, `utils.py`, and `ml_utils.py`. 
 
 The original data comes from the files `all_grades.tsv`, `drug_cid.tsv`, `normal_tissue.tsv`,
 `proteinatlas.tsv`, `uniprotkb_reviewed_true_AND_model_organ_2023_08_23.tsv`. These
